@@ -1,0 +1,138 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+   Not(in=instruction[15],out=opcode);
+    // Flip the first bit of the instruction
+    // Try without this and you'll understand why it's necessary.
+
+    Mux16(a=toD,b=instruction,sel=opcode,out=outmux);
+    // Use that bit to determine whether Instruction or output from ALU should be passed to A register
+
+    Or(a=opcode, b=instruction[5], out=intoA);
+    // Or with the destination bit, if both OP code and instruction[5] is 0 the load should be 0 or else 1
+    //instruction[5] tell where to store the output. (The destination bits)
+
+    ARegister(in=outmux, load=intoA ,out=aregister, out[0..14]=addressM); 
+    // A Register
+    // The reason we used ARegister, instead of just Register, is to get the GUI for A register (I'll explain it later)
+
+    And(a=instruction[15], b=instruction[12], out=AorM);
+    // Calling it AM AND (for convenience)
+    // AND between opcode and 0. Instruction[12] is going to be 0 unless we want to use the value inside M
+
+    Mux16(a=aregister, b=inM, sel=AorM , out=mux2); // Second Mux
+    // This mux helps to select between the value in aregister and the input we gave through inM pin.
+    // The selection pin is the output of "AM AND", when the output is 1 inM will be the output of Mux16
+    // This is why we needed to do And.
+
+
+    ALU(x=dregister, y=mux2, zx=instruction[11], nx=instruction[10],
+    zy=instruction[9], ny=instruction[8], f=instruction[7],
+    no=instruction[6], zr=zr, ng=ng, out=toD, out=outM);
+    // ALU, pretty straightforward
+    // We give the control bits in the instruction into the control bits of the ALU and get output.
+
+    And(a=instruction[15], b=instruction[4], out=intoD);
+    // Used to check if D is supposed to be written by doing AND of OP code and Destination bit
+
+    DRegister(in=toD, load=intoD, out=dregister);
+    // D Register. It's called DRegister to get GUI.
+
+    And(a=instruction[15], b=instruction[3], out=writeM);
+    // Used to write to M register by doing AND on OP code and destination bit.
+
+    Not(in=ng,out=positive);
+    // Do not of ng
+    // If the output from ALU is negative, then nzr will be 0
+    // This will only return 1, if the output from ALU is positive.
+    // So the output name is positive
+
+	  Not(in=zr,out=gtzero);
+    // Do not of zr
+    // If the output from ALU is zero then nzr will be 0
+    // This will only output 1, if the output from ALU is greater than 0
+    // So the output name is gtzero (greater than 0)
+
+	  And(a=instruction[15],b=instruction[0],out=jgt);
+    // Do AND of OP code and Jump bit.
+    // This is done to check if the instruction is C instruction
+    // Also to check if a jump is declared.
+    // If a JUMP is declared then instruction[0] will be 1 or else 0
+    // This will only return 1 if the instruction given is C instruction and also a jump is specified
+
+	  And(a=positive,b=gtzero,out=posgtz);
+    // Do AND of pos and gtzero.
+    // This will only return 1 if the output is greater than 0.
+    // So the output name is "Positive and Greater than 0"
+
+    And(a=jgt,b=posgtz,out=jm1);
+    // Now we do AND to find out if Jump should occur.
+    // The jump will only occur if a jump is declared and the condition is also true
+
+	  And(a=instruction[15],b=instruction[1],out=jeq);
+    // Same as jgt
+    // Check if the jump is specified also check if the instruction is C instruction.
+
+	  And(a=jeq,b=zr,out=jm2);
+    // ZR is 1 if the output of ALU is 0
+    // So we and JEQ and ZR to find if the jump is declared and also if the condition is true
+
+	  And(a=instruction[15],b=instruction[2],out=jlt);
+    // Same as jgt
+    // Check if the jump is specified also check if the instruction is C instruction.
+
+    And(a=jlt,b=ng,out=jm3);
+    // NG is 1 only when ALU output is negative
+    // This will output 1 only if a jump is declared and the condition is true.
+
+	  Or(a=jm1,b=jm2,out=jm);
+	  Or(a=jm3,b=jm,out=jmp);
+    // Done to check if there's a jump.
+    // if there's no jump the output will be 0 and if there's a jump the output will be 1
+
+
+   PC (in=aregister, load=jmp, inc=true , reset=reset, out[0..14]=pc);
+   // Finally at the Program counter.
+   // This will start from 0 and start incrementing once we push the reset button (if we provide 1 to reset pin)
+   // If a JUMP is declared, the load pin is asserted with 1 and it will load the value from aregister.
+   // Done
+
+   }

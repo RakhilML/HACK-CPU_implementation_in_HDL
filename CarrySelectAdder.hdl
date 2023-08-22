@@ -1,0 +1,101 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/csa/CarrySelctAdder.hdl
+
+CHIP CarrySelectAdder{
+    IN a[16], b[16], cin;
+    OUT out[16], cout;
+
+    PARTS:
+
+    //First Part bits(0-1)//
+    //2 Bit Ripple Adder//
+    FullAdder(a=a[0], b=b[0], c=false, sum=out[0], carry=cc0);
+    FullAdder(a=a[1], b=b[1], c=cc0, sum=out[1], carry=cc1);
+
+
+    //Second Part (2-3)//
+
+    //C=0//
+    FullAdder(a=a[2], b=b[2], c=false, sum=a0, carry=cd0);
+    FullAdder(a=a[3], b=b[3], c=cd0, sum=a1, carry=cd1);
+
+    //C=1//
+    FullAdder(a=a[2], b=b[2], c=true, sum=b0, carry=ce0);
+    FullAdder(a=a[3], b=b[3], c=ce0, sum=b1, carry=ce1);
+
+    //Mux for Sum//
+    Mux(a=a0, b=b0, sel=cc1, out=out[2]);
+    Mux(a=a1, b=b1, sel=cc1, out=out[3]);
+
+    //Mux for Carry//
+    Mux(a=cd1, b=ce1, sel=cc1, out=cc2);
+
+    //Third Part (4-6)//
+    //C=0//
+    FullAdder(a=a[4], b=b[4], c=false, sum=c0, carry=cf0);
+    FullAdder(a=a[5], b=b[5], c=cf0, sum=c1, carry=cf1);
+    FullAdder(a=a[6], b=b[6], c=cf1, sum=c2, carry=cf2);
+
+    //C=1//
+    FullAdder(a=a[4], b=b[4], c=true, sum=d0, carry=cg0);
+    FullAdder(a=a[5], b=b[5], c=cg0, sum=d1, carry=cg1);
+    FullAdder(a=a[6], b=b[6], c=cg1, sum=d2, carry=cg2);
+
+    //Mux for Sum//
+    Mux(a=c0, b=d0, sel=cc2, out=out[4]);
+    Mux(a=c1, b=d1, sel=cc2, out=out[5]);
+    Mux(a=c2, b=d2, sel=cc2, out=out[6]);
+
+    //Mux for Carry//
+    Mux(a=cf2, b=cg2, sel=cc2, out=cc3);
+
+
+    //Fourth Part(7-10)//
+    //C=0//
+    FullAdder(a=a[7], b=b[7], c=false, sum=e0, carry=ch0);
+    FullAdder(a=a[8], b=b[8], c=ch0, sum=e1, carry=ch1);
+    FullAdder(a=a[9], b=b[9], c=ch1, sum=e2, carry=ch2);
+    FullAdder(a=a[10], b=b[10], c=ch2, sum=e3, carry=ch3);
+
+    //C=1//
+    FullAdder(a=a[7], b=b[7], c=true, sum=f0, carry=ci0);
+    FullAdder(a=a[8], b=b[8], c=ci0, sum=f1, carry=ci1);
+    FullAdder(a=a[9], b=b[9], c=ci1, sum=f2, carry=ci2);
+    FullAdder(a=a[10], b=b[10], c=ci2, sum=f3, carry=ci3);
+
+    //Mux for Sum//
+    Mux(a=e0, b=f0, sel=cc3, out=out[7]);
+    Mux(a=e1, b=f1, sel=cc3, out=out[8]);
+    Mux(a=e2, b=f2, sel=cc3, out=out[9]);
+    Mux(a=e3, b=f3, sel=cc3, out=out[10]);
+
+    //Mux for Carry//
+    Mux(a=ch3, b=ci3, sel=cc3, out=cc4);
+
+    //Fifth Part(11-15)//
+    //C=0//
+    FullAdder(a=a[11], b=b[11], c=false, sum=g0, carry=cj0);
+    FullAdder(a=a[12], b=b[12], c=cj0, sum=g1, carry=cj1);
+    FullAdder(a=a[13], b=b[13], c=cj1, sum=g2, carry=cj2);
+    FullAdder(a=a[14], b=b[14], c=cj2, sum=g3, carry=cj3);
+    FullAdder(a=a[15], b=b[15], c=cj3, sum=g4, carry=cj4);
+
+    //C=1//
+    FullAdder(a=a[11], b=b[11], c=true, sum=h0, carry=ck0);
+    FullAdder(a=a[12], b=b[12], c=ck0, sum=h1, carry=ck1);
+    FullAdder(a=a[13], b=b[13], c=ck1, sum=h2, carry=ck2);
+    FullAdder(a=a[14], b=b[14], c=ck2, sum=h3, carry=ck3);
+    FullAdder(a=a[15], b=b[15], c=ck3, sum=h4, carry=ck4);
+
+    //Mux for Sum//
+    Mux(a=g0, b=h0, sel=cc4, out=out[11]);
+    Mux(a=g1, b=h1, sel=cc4, out=out[12]);
+    Mux(a=g2, b=h2, sel=cc4, out=out[13]]);
+    Mux(a=g3, b=h3, sel=cc4, out=out[14]);
+    Mux(a=g4, b=h4, sel=cc4, out=out[15]);
+
+    //Mux for Carry//
+    Mux(a=cj4, b=ck4, sel=cc4, out=cout);
+}
